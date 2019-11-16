@@ -1,0 +1,1 @@
+Careful REST setup with Tests: https://www.caktusgroup.com/blog/2019/02/01/creating-api-endpoint-django-rest-framework/
