@@ -82,7 +82,7 @@ DATABASES = {
         'NAME': 'IPS-Demo',
         # Settings for Mongo Atlas reference
         # https://github.com/nesdis/djongo/issues/132
-        'HOST': 'mongo_atlas_srv'
+        'HOST': 'localhost:27017'
     }
 }
 

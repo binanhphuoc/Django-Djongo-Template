@@ -1,74 +1,52 @@
 from rest_framework import serializers
-from djongo.models.fields import ArrayReferenceManagerMixin
 from .models import Concept, Attribute, Equation
-
-# ArrayReferenceField won't be able to fetch and return an empty array
-# Expected to return an array of ObjectID values
-# Fix this by overriding ArrayReferenceManagerMixin.__str__
-# Issue raised on GitHub at: https://github.com/nesdis/djongo/issues/270
-
-def patch_str(self):
-    return ("\n".join(set([str(item) for item in self.all()])))
-
-ArrayReferenceManagerMixin.__str__ = patch_str
-
-# CUSTOM FIELDS
-
-class MongoIdField(serializers.Field):
-    def to_representation(self, value):
-        return str(value)
-
-    # def to_internal_value(self, data):
-    #     data = data.strip('rgb(').rstrip(')')
-    #     red, green, blue = [int(col) for col in data.split(',')]
-    #     return Color(red, green, blue)
-
-class MongoArrayReferenceField(serializers.Field):
-
-    class DefaultSerializer(serializers.Serializer):
-        _id = MongoIdField()
-
-    def __init__(self, *args, **kwargs):
-        if 'serializer' not in kwargs:
-            self.serializer = self.DefaultSerializer
-        else:
-            self.serializer = kwargs['serializer']
-        kwargs.pop('serializer', None)
-        super().__init__(*args, **kwargs)
-
-    def to_representation(self, value):
-        print("\nArrayReferenceField:\n")
-        array = [self.serializer(obj).data for obj in value.get_queryset()]
-        # value.get_queryset() will return the Python objects, so we need to serialize
-        # them into JSON
-        # We can see the Python objects and their data types by uncommenting the below:
-
-        # for obj in value.get_queryset():
-        #     print(obj.description)
-        #     print(type(obj))
-        return array
 
 # SERIALIZERS
 
 class AttributeSerializer(serializers.ModelSerializer):
-    _id = MongoIdField()
+    _id = serializers.MongoIdField(read_only=True)
+    parent_concept = serializers.MongoIdField()
     class Meta:
         model = Attribute
-        fields = ['_id','symbol', 'description']
+        fields = ['_id','symbol','parent_concept','description']
 
 class EquationSerializer(serializers.ModelSerializer):
-    _id = MongoIdField()
+    _id = serializers.MongoIdField(read_only=True)
+    parent_concept = serializers.MongoIdField()
     class Meta:
         model = Equation
         fields = ['_id','syntax', 'name','description']
 
 class ConceptSerializer(serializers.ModelSerializer):
-    #     many=True
-    # )
-    _id = MongoIdField()
-    attributes = MongoArrayReferenceField(serializer=AttributeSerializer)
-    equations = MongoArrayReferenceField(serializer=EquationSerializer)
-    
+    _id = serializers.MongoIdField(read_only=True)
+    equations = serializers.MongoArrayReferenceField(serializer=EquationSerializer,required=False)
+    attributes = serializers.MongoArrayReferenceField(serializer=AttributeSerializer,required=False)
+
     class Meta:
         model = Concept
         fields = ['_id','name','attributes','equations']
+    
+    # def validate_attributes(self, value):
+    #     """
+    #     Check that the start is before the stop.
+    #     """
+    #     if ['start_date'] > data['end_date']:
+    #         raise serializers.ValidationError("finish must occur after start")
+    #     return data
+
+# As we see, ArrayReferenceField requires patch_str overriding of __str__ to work!!!
+# There's another way to avoid this override.
+# Append "_id" to the the name of ArrayReferenceField, e.g. "attributes" -> "attributes_id"
+# And provide the field with a custom serializers.Field
+# The code below demonstrates this way:
+
+# class MongoArrayReferenceFieldWithIdPostfix(serializers.Field):
+#     def to_representation(self, value):
+#         print(value)
+#         return "hello"
+
+# class ConceptSerializer(serializers.ModelSerializer):
+#     attributes = MongoArrayReferenceFieldWithIdPostfix()
+#     class Meta:
+#         model = Concept
+#         fields = ['attributes_id']
