@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 from djongo.models.fields import ArrayReferenceManagerMixin
 
 # ArrayReferenceField won't be able to fetch so it returns an empty array
@@ -45,6 +46,27 @@ class MongoArrayReferenceField(serializers.ListField):
 serializers.MongoIdField = MongoIdField
 serializers.MongoArrayReferenceField = MongoArrayReferenceField
 
+def model_validate(self, data):
+    data = self.original_validate(data)
+    if self.instance is None:
+        return data
+    for key, value in self.get_fields().items():
+        if (isinstance(value, MongoArrayReferenceField) and key in data):
+            model = getattr(self.instance,key).model
+            if 'add' in data[key]:
+                list_to_validate = data[key]['add']
+                if not all(isinstance(item, model) for item in list_to_validate):
+                    raise ValidationError("All items in '{:s}.add' must have type '{:s}'. This error may happen because the request is unauthorized for this action."
+                    .format(key, str(model)))
+            if 'remove' in data[key]:
+                list_to_validate = data[key]['remove']
+                if not all(isinstance(item, model) for item in list_to_validate):
+                    raise ValidationError("All items in '{:s}.remove' must have type '{:s}'. This error may happen because the request is unauthorized for this action."
+                    .format(key, str(model)))
+    return data
+
+# validated_data: has to be dict with either 'add' or 'remove' specified
+# Each 'add' or 'remove' is an array of child objects, not str
 def model_update(self, instance, validated_data):
     for key, value in self.get_fields().items():
         if (isinstance(value, MongoArrayReferenceField) and key in validated_data):
@@ -57,3 +79,5 @@ def model_update(self, instance, validated_data):
 
 serializers.ModelSerializer.original_update = serializers.ModelSerializer.update
 serializers.ModelSerializer.update = model_update
+serializers.ModelSerializer.original_validate = serializers.ModelSerializer.validate
+serializers.ModelSerializer.validate = model_validate
