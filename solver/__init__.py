@@ -16,7 +16,10 @@ ArrayReferenceManagerMixin.__str__ = patch_str
 
 class MongoIdField(serializers.Field):
     def to_representation(self, value):
-        return str(value)
+        try:
+            return str(value._id)
+        except AttributeError:
+            return str(value)
     
     def to_internal_value(self, data):
         return data

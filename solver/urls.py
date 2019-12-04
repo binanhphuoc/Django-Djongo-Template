@@ -12,5 +12,5 @@ urlpatterns = [
     path('knowledgebase/concepts/<str:concept_id>/attributes/<str:attribute_id>', views.attribute_detail),
     path('knowledgebase/concepts/<str:concept_id>/equations', views.equation_list),
     path('knowledgebase/concepts/<str:concept_id>/equations/<str:equation_id>', views.equation_detail),
-    path('inference-engine/concepts/<str:name>/solution', views.concept_solution),
+    path('inference-engine/concepts/<str:concept_id>/solution', views.concept_solution),
 ]
